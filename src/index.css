@@ -1,0 +1,280 @@
+* {
+  box-sizing: border-box
+}
+
+html {
+  padding: 0%;
+
+}
+
+body {
+  overflow: hidden;
+  font-family: Verdana, Geneva, Tahoma, sans-serif;
+  margin: 0%;
+  height: 100dvh;
+  background-color: #030438;
+
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  /* position: fixed; */
+  color: #fff;
+  background: #030438;
+  width: 100dvw;
+  height: 7dvh;
+  padding: 10px 20px;
+  align-items: center;
+}
+
+.display_none {
+  transition: 0.5s;
+  position: absolute;
+  overflow: hidden;
+  width: fit-content;
+  background: #00b4d8;
+  top: 8%;
+  right: 2%;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  max-width: 300px;
+  height: 0px;
+
+
+}
+
+.user_div {
+
+
+
+  padding: 20px;
+  position: absolute;
+  transition: 0.5s;
+  background: #00b4d8;
+  top: 8%;
+  right: 2%;
+  height: 30%;
+  overflow: hidden;
+}
+
+.side_options {
+  display: flex;
+  justify-content: space-around;
+  width: 30%;
+}
+
+.page {
+
+  width: 100dvw;
+  align-items: center;
+  justify-content: center;
+  display: flex;
+  top: 0px;
+  bottom: 0px;
+  flex-direction: column;
+  position: fixed;
+
+  h3 {
+    margin: 0%;
+  }p{
+    color: #00b4d8;
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
+  gap: 10px;
+  background-color: #caf0f8;
+  padding: 30px;
+  border-radius: 20px;width: 400px;
+  box-shadow: black 0px 15px 50px;
+
+  input {
+    height: 40px;
+    padding: 10px;
+    border: #00b4d8 3px solid;
+    border-radius: 10px;
+    background-color: #90e0ef;
+    outline: none;
+    color: #03045e;
+  }
+
+  h3 {
+    color: #03045e;
+  }
+}
+
+.login_btn {
+  border-radius: 3px;
+  border: none;
+  outline: none;padding: 0px 30px;
+  height: 30px;
+  width: fit-content;color: #fff;
+  background-color: #00b4d8;
+  box-shadow: 0px 1px 5px #03045e;
+
+  &:hover {
+    background-color: #90e0ef;
+  }
+}
+
+.google_btn {
+  color: #03045e;
+  height: 30px;
+  width: 80%;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px;
+  align-items: center;
+  border-radius: 10px;
+  border: none;
+}
+
+.already_have_an {
+  border: none;
+  background-color: transparent;
+  color: #00b4d8;
+}
+
+/* //////////////////////////////////////////////////////////////////////////////////////////////////// */
+
+
+.task_page {
+  background-color: #fff;
+  height: 100dvh;
+  padding: 10px;
+  max-width: 700px;
+  width: 100dvw;
+
+  h2 {
+    color: #00b4d8;
+
+  }
+}
+
+.filters {
+  display: flex;
+  justify-content: space-between;
+  width: 50%;
+
+  button {
+    border: none;
+    height: 30px;
+    border-radius: 10px;
+  }
+
+}
+
+.filters button:active,
+.filters button:focus {
+  background-color: #00b4d8;
+  color: white;
+}
+
+.input_task {
+  height: 30px;
+  border-radius: 20px;
+  padding: 10px;
+  border: 2px solid #00b4d8;
+  background-color: #caf0f8;
+  margin: 30px 30px 0px 0px;
+  outline: none;
+
+}
+
+.task_add_btn {
+  background-color: #00b4d8;
+  border: none;
+  height: 30px;
+  padding: 0px 20px;
+  border-radius: 20px;
+}
+
+.task {
+  justify-content: space-between;
+  width: 100%;
+  background: #90e0ef;
+  display: flex;
+  height: fit-content;
+  padding: 10px;
+  border-radius: 20px;
+  text-align: left;
+
+  span {
+    max-width: 70%;
+    margin: 0px 10px;
+  }
+}
+
+.tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0%;
+  width: 100%;
+  height: 65dvh;
+  text-align: left;
+  overflow-y: scroll;
+  scrollbar-width: thin;
+  scrollbar-color: #00b4d8 transparent;
+}
+
+.task_options {
+  display: flex;
+  gap: 10px;
+  height: 25px;
+
+  button {
+    background-color: #fff;
+    border: none;
+    border-radius: 50%;
+    padding: 5px;
+  }
+
+}
+
+.editing {
+  position: fixed;
+  bottom: 0;
+  background: #FFF;
+  width: 86%;
+  max-width: 700px;
+  margin: 0px;
+  padding: 20px;
+  border-radius: 10px;
+
+  input {
+    height: 30px;
+    padding: 10px;
+    border: #00b4d8 3px solid;
+    border-radius: 10px;
+    background-color: #90e0ef;
+    outline: none;
+    color: #03045e;
+  }
+
+  span {
+    color: #03045e;
+    font-weight: normal;
+  }
+
+  h4 {
+    color: #00b4d8;
+  }
+
+  button {
+    background-color: #00b4d8;
+    border: none;
+    height: 30px;
+    padding: 0px 20px;
+    border-radius: 20px;
+    margin: 10px;
+  }
+}
