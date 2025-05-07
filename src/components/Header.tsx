@@ -30,7 +30,7 @@ export const Header: React.FC<HeaderProps> = ({ user, handleLogOut }) => {
       <div className={isActive?"user_div display_none":"display_none"}>
         <div style={{ textAlign: "center" }}><FontAwesomeIcon icon={faUser} style={{ fontSize: "50px", textAlign: "center", border: "3px solid #fff", padding: "20px", borderRadius: "50%" }} />
           <p>{user.email || user.displayName}</p>
-        </div>    <button onClick={handleLogOut}>Sign Out</button>
+        </div>    <button  className="signout_btn" onClick={handleLogOut}>Sign Out</button>
       </div>
     </header>
 
