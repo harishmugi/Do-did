@@ -1,12 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { db } from '../firebase'; 
-import { collection, addDoc, deleteDoc, doc, onSnapshot, query, where, orderBy, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import {
+  collection, addDoc, deleteDoc, doc,
+  onSnapshot, query, where, orderBy, updateDoc
+} from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import type { Todo } from '../types';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faPencil, faTrash, faCheck, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons';
-import '../index.css'; // Create this CSS file for custom styles
+import {
+  faPencil, faTrash, faCheck,
+  faPlus, faTimes, faBellSlash
+} from '@fortawesome/free-solid-svg-icons';
+import '../index.css';
 
 interface Props {
   user: User;
@@ -20,16 +26,17 @@ export const Task: React.FC<Props> = ({ user }) => {
   const [editText, setEditText] = useState('');
   const [dueDate, setDueDate] = useState<string>('');
   const [reminderHours, setReminderHours] = useState<number>(1);
-  const [permissionGranted, setPermissionGranted] = useState<boolean>(Notification.permission === 'granted');
+  const [permissionGranted, setPermissionGranted] = useState(Notification.permission === 'granted');
   const [isFormExpanded, setIsFormExpanded] = useState(false);
+  const [errors, setErrors] = useState<{ text?: string, dueDate?: string, reminder?: string }>({});
 
   useEffect(() => {
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
         setPermissionGranted(true);
       } else if (Notification.permission !== 'denied') {
-        Notification.requestPermission().then((permission) => {
-          setPermissionGranted(permission === 'granted');
+        Notification.requestPermission().then((perm) => {
+          setPermissionGranted(perm === 'granted');
         });
       }
     }
@@ -43,66 +50,73 @@ export const Task: React.FC<Props> = ({ user }) => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const userTodos: Todo[] = snapshot.docs.map((doc) => ({
         id: doc.id,
-        text: doc.data().text,
-        uid: doc.data().uid,
-        completed: doc.data().completed,
-        dueDate: doc.data().dueDate,
-        reminderHours: doc.data().reminderHours,
-        createdAt: doc.data().createdAt?.toDate(),
-      }));
+        ...doc.data()
+      })) as Todo[];
 
       userTodos.sort((a, b) => Number(a.completed) - Number(b.completed));
       setTodos(userTodos);
     });
 
     return () => unsubscribe();
-  }, [user.uid, permissionGranted]);
+  }, [user.uid]);
 
-  const setReminder = (dueDate: string, reminderHours: number) => {
+  const validateTask = (text: string, due: string, reminder: number): boolean => {
+    const newErrors: typeof errors = {};
+
+    if (!text.trim()) newErrors.text = "Task cannot be empty.";
+    if (due && new Date(due) <= new Date()) newErrors.dueDate = "Due date must be in the future.";
+    if (reminder < 1 || reminder > 24) newErrors.reminder = "Reminder must be between 1 and 24 hours.";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const setReminder = (title: string, dueDate: string, hoursBefore: number) => {
     const userPref = localStorage.getItem("notificationsEnabled");
     const notificationsEnabled = userPref === "true";
-  
+
     if (!notificationsEnabled || !permissionGranted) return;
-  
-    const dueDateObj = new Date(dueDate);
-    const reminderTime = new Date(dueDateObj.getTime() - reminderHours * 60 * 60 * 1000);
-    const currentTime = new Date();
-    const timeUntilReminder = reminderTime.getTime() - currentTime.getTime();
-  
-    if (timeUntilReminder > 0) {
+
+    const due = new Date(dueDate);
+    const remindAt = new Date(due.getTime() - hoursBefore * 60 * 60 * 1000);
+    const now = new Date();
+    const delay = remindAt.getTime() - now.getTime();
+
+    if (delay > 0) {
       setTimeout(() => {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(`Reminder: "${input}" is due in ${reminderHours} hour(s)!`, {
-            body: `Due: ${formatDate(dueDate)}`
+        if (Notification.permission === 'granted') {
+          new Notification(`Reminder: "${title}" is due soon!`, {
+            body: `Due at: ${formatDate(dueDate)}`
           });
         }
-      }, timeUntilReminder);
+      }, delay);
     }
   };
 
   const addTodo = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim()) {
-      const newTodo = {
-        text: input,
-        uid: user.uid,
-        completed: false,
-        createdAt: new Date(),
-        dueDate,
-        reminderHours,
-      };
+    if (!validateTask(input, dueDate, reminderHours)) return;
 
-      await addDoc(collection(db, 'todos'), newTodo);
+    const newTodo = {
+      text: input.trim(),
+      uid: user.uid,
+      completed: false,
+      createdAt: new Date(),
+      dueDate,
+      reminderHours,
+    };
 
-      if (dueDate && reminderHours > 0) {
-        setReminder(dueDate, reminderHours);
-      }
+    await addDoc(collection(db, 'todos'), newTodo);
 
-      setInput('');
-      setDueDate('');
-      setReminderHours(1);
-      setIsFormExpanded(false);
+    if (dueDate && reminderHours > 0) {
+      setReminder(input, dueDate, reminderHours);
     }
+
+    setInput('');
+    setDueDate('');
+    setReminderHours(1);
+    setErrors({});
+    setIsFormExpanded(false);
   };
 
   const deleteTodo = async (id: string) => {
@@ -110,8 +124,7 @@ export const Task: React.FC<Props> = ({ user }) => {
   };
 
   const toggleComplete = async (todo: Todo) => {
-    const todoRef = doc(db, 'todos', todo.id);
-    await updateDoc(todoRef, {
+    await updateDoc(doc(db, 'todos', todo.id), {
       completed: !todo.completed,
     });
   };
@@ -119,22 +132,23 @@ export const Task: React.FC<Props> = ({ user }) => {
   const startEditing = (todo: Todo) => {
     setEditingTodo(todo);
     setEditText(todo.text);
-    setDueDate(todo.dueDate || "");
+    setDueDate(todo.dueDate || '');
     setReminderHours(todo.reminderHours || 1);
+    setErrors({});
   };
 
   const saveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTodo) return;
-    const todoRef = doc(db, 'todos', editingTodo.id);
-    await updateDoc(todoRef, { 
-      text: editText, 
-      dueDate, 
-      reminderHours 
+    if (!editingTodo || !validateTask(editText, dueDate, reminderHours)) return;
+
+    await updateDoc(doc(db, 'todos', editingTodo.id), {
+      text: editText.trim(),
+      dueDate,
+      reminderHours,
     });
 
     if (dueDate && reminderHours > 0) {
-      setReminder(dueDate, reminderHours);
+      setReminder(editText, dueDate, reminderHours);
     }
 
     setEditingTodo(null);
@@ -142,9 +156,10 @@ export const Task: React.FC<Props> = ({ user }) => {
 
   const cancelEdit = () => {
     setEditingTodo(null);
+    setErrors({});
   };
 
-  const filteredTodos = todos.filter((todo) => {
+  const filteredTodos = todos.filter(todo => {
     if (filter === 'active') return !todo.completed;
     if (filter === 'completed') return todo.completed;
     return true;
@@ -161,52 +176,44 @@ export const Task: React.FC<Props> = ({ user }) => {
     });
   };
 
-  const isDueSoon = (dueDateStr: string) => {
-    if (!dueDateStr) return false;
-    const dueDate = new Date(dueDateStr);
-    const now = new Date();
-    const timeDiff = dueDate.getTime() - now.getTime();
-    return timeDiff > 0 && timeDiff < 24 * 60 * 60 * 1000; // Due within 24 hours
+  const isDueSoon = (dateStr: string) => {
+    if (!dateStr) return false;
+    const due = new Date(dateStr);
+    return due.getTime() - Date.now() < 86400000 && due > new Date();
   };
 
-  const isOverdue = (dueDateStr: string, completed: boolean) => {
-    if (!dueDateStr || completed) return false;
-    const dueDate = new Date(dueDateStr);
-    const now = new Date();
-    return now > dueDate;
+  const isOverdue = (dateStr: string, completed: boolean) => {
+    if (!dateStr || completed) return false;
+    return new Date() > new Date(dateStr);
   };
 
   return (
     <div className="task-container">
       <div className="task-header">
         <h2>Your Tasks</h2>
+        {!permissionGranted && (
+          <p className="notification-warning">
+            <FontAwesomeIcon icon={faBellSlash} /> Notifications are disabled.
+          </p>
+        )}
         <div className="filter-buttons">
-          <button
-            className={filter === 'all' ? 'active' : ''}
-            onClick={() => setFilter('all')}
-          >
-            All
-          </button>
-          <button
-            className={filter === 'active' ? 'active' : ''}
-            onClick={() => setFilter('active')}
-          >
-            Active
-          </button>
-          <button
-            className={filter === 'completed' ? 'active' : ''}
-            onClick={() => setFilter('completed')}
-          >
-            Completed
-          </button>
+          {['all', 'active', 'completed'].map(f => (
+            <button
+              key={f}
+              className={filter === f ? 'active' : ''}
+              onClick={() => setFilter(f as any)}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 
       <AnimatePresence>
         {isFormExpanded ? (
           <motion.form
-            className="task-form"
             onSubmit={addTodo}
+            className="task-form"
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
@@ -218,11 +225,10 @@ export const Task: React.FC<Props> = ({ user }) => {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="What needs to be done?"
-                autoFocus
                 required
               />
+              {errors.text && <small className="error">{errors.text}</small>}
             </div>
-
             <div className="form-group">
               <label>Due Date & Time</label>
               <input
@@ -231,8 +237,8 @@ export const Task: React.FC<Props> = ({ user }) => {
                 onChange={(e) => setDueDate(e.target.value)}
                 min={new Date().toISOString().slice(0, 16)}
               />
+              {errors.dueDate && <small className="error">{errors.dueDate}</small>}
             </div>
-
             <div className="form-group">
               <label>Reminder (hours before due)</label>
               <input
@@ -242,17 +248,13 @@ export const Task: React.FC<Props> = ({ user }) => {
                 min="1"
                 max="24"
               />
+              {errors.reminder && <small className="error">{errors.reminder}</small>}
             </div>
-
             <div className="form-actions">
               <button type="submit" className="primary-btn">
                 <FontAwesomeIcon icon={faPlus} /> Add Task
               </button>
-              <button 
-                type="button" 
-                className="secondary-btn"
-                onClick={() => setIsFormExpanded(false)}
-              >
+              <button type="button" className="secondary-btn" onClick={() => setIsFormExpanded(false)}>
                 <FontAwesomeIcon icon={faTimes} /> Cancel
               </button>
             </div>
@@ -261,8 +263,8 @@ export const Task: React.FC<Props> = ({ user }) => {
           <motion.button
             className="add-task-btn"
             onClick={() => setIsFormExpanded(true)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             <FontAwesomeIcon icon={faPlus} /> Add New Task
           </motion.button>
@@ -271,12 +273,10 @@ export const Task: React.FC<Props> = ({ user }) => {
 
       <ul className="task-list">
         <AnimatePresence>
-          {filteredTodos.map((todo) => (
+          {filteredTodos.map(todo => (
             <motion.li
               key={todo.id}
-              className={`task-item ${todo.completed ? 'completed' : ''} ${
-                isDueSoon(todo.dueDate) ? 'due-soon' : ''
-              } ${isOverdue(todo.dueDate, todo.completed) ? 'overdue' : ''}`}
+              className={`task-item ${todo.completed ? 'completed' : ''} ${isDueSoon(todo.dueDate) ? 'due-soon' : ''} ${isOverdue(todo.dueDate, todo.completed) ? 'overdue' : ''}`}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -100 }}
@@ -303,29 +303,15 @@ export const Task: React.FC<Props> = ({ user }) => {
                       <span className={isOverdue(todo.dueDate, todo.completed) ? 'overdue-text' : ''}>
                         {formatDate(todo.dueDate)}
                       </span>
-                      {isOverdue(todo.dueDate, todo.completed) && (
-                        <span className="overdue-badge">OVERDUE</span>
-                      )}
-                      {isDueSoon(todo.dueDate) && !todo.completed && (
-                        <span className="due-soon-badge">DUE SOON</span>
-                      )}
+                      {isOverdue(todo.dueDate, todo.completed) && <span className="overdue-badge">OVERDUE</span>}
+                      {isDueSoon(todo.dueDate) && !todo.completed && <span className="due-soon-badge">DUE SOON</span>}
                     </div>
                   )}
                 </div>
               </div>
               <div className="task-actions">
-                <button 
-                  onClick={() => startEditing(todo)}
-                  aria-label="Edit task"
-                >
-                  <FontAwesomeIcon icon={faPencil} />
-                </button>
-                <button 
-                  onClick={() => deleteTodo(todo.id)}
-                  aria-label="Delete task"
-                >
-                  <FontAwesomeIcon icon={faTrash} />
-                </button>
+                <button onClick={() => startEditing(todo)}><FontAwesomeIcon icon={faPencil} /></button>
+                <button onClick={() => deleteTodo(todo.id)}><FontAwesomeIcon icon={faTrash} /></button>
               </div>
             </motion.li>
           ))}
@@ -334,18 +320,8 @@ export const Task: React.FC<Props> = ({ user }) => {
 
       <AnimatePresence>
         {editingTodo && (
-          <motion.div 
-            className="edit-modal"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <motion.form 
-              className="edit-form"
-              onSubmit={saveEdit}
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-            >
+          <motion.div className="edit-modal" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <motion.form onSubmit={saveEdit} className="edit-form" initial={{ scale: 0.9 }} animate={{ scale: 1 }}>
               <h3>Edit Task</h3>
               <div className="form-group">
                 <input
@@ -353,8 +329,8 @@ export const Task: React.FC<Props> = ({ user }) => {
                   value={editText}
                   onChange={(e) => setEditText(e.target.value)}
                   required
-                  autoFocus
                 />
+                {errors.text && <small className="error">{errors.text}</small>}
               </div>
               <div className="form-group">
                 <label>Due Date & Time</label>
@@ -364,6 +340,7 @@ export const Task: React.FC<Props> = ({ user }) => {
                   onChange={(e) => setDueDate(e.target.value)}
                   min={new Date().toISOString().slice(0, 16)}
                 />
+                {errors.dueDate && <small className="error">{errors.dueDate}</small>}
               </div>
               <div className="form-group">
                 <label>Reminder (hours before due)</label>
@@ -374,18 +351,11 @@ export const Task: React.FC<Props> = ({ user }) => {
                   min="1"
                   max="24"
                 />
+                {errors.reminder && <small className="error">{errors.reminder}</small>}
               </div>
               <div className="form-actions">
-                <button type="submit" className="primary-btn">
-                  Save Changes
-                </button>
-                <button 
-                  type="button" 
-                  className="secondary-btn"
-                  onClick={cancelEdit}
-                >
-                  Cancel
-                </button>
+                <button type="submit" className="primary-btn">Save Changes</button>
+                <button type="button" className="secondary-btn" onClick={cancelEdit}>Cancel</button>
               </div>
             </motion.form>
           </motion.div>
